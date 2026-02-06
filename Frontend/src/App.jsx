@@ -4,45 +4,68 @@ import * as XLSX from "xlsx";
 
 function App() {
 
-  const [msg, setMsg] = useState("")
-  const [status, setStatus] = useState(false)
-  const [emailList, setEmaillist] = useState([])
+  const [msg, setMsg] = useState("");
+  const [status, setStatus] = useState(false);
+  const [emailList, setEmailList] = useState([]);
 
-  function handlemsg(evt) {
-    setMsg(evt.target.value)
+  /* Handle message typing */
+  function handleMsg(e) {
+    setMsg(e.target.value);
   }
 
-  function handlefile(event) {
-    const file = event.target.files[0]
+  /* Handle Excel / CSV upload */
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const reader = new FileReader()
+    const reader = new FileReader();
 
-    reader.onload = function (event) {
-      const data = event.target.result
-      const workbook = XLSX.read(data, { type: "array" })
-      const sheetName = workbook.SheetNames[0]
-      const WorkSheet = workbook.Sheets[sheetName]
-      const emailList = XLSX.utils.sheet_to_json(WorkSheet, { header: 'A' })
-      const totalemail = emailList.map(function (item) { return item.A })
-      console.log(totalemail)
-      setEmaillist(totalemail)
+    reader.onload = (event) => {
+      const data = event.target.result;
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: "A" });
+      const emails = rows.map(row => row.A).filter(Boolean);
+
+      setEmailList(emails);
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  /* Send mail */
+  async function send() {
+    if (!msg || emailList.length === 0) {
+      alert("Message or email list empty ❌");
+      return;
     }
 
-    reader.readAsArrayBuffer(file)
-  }
+    try {
+      setStatus(true);
 
-  function send() {
-    setStatus(true)
-    axios.post("http://localhost:4000/sendmail", { msg: msg, emailList:emailList})
-      .then(function (data) {
-        if (data.data === true) {
-          alert("Email Sent Sucessfully")
-          setStatus(false)
+      const res = await axios.post("http://localhost:4000/sendmail",
+        {
+          msg,
+          emailList
         }
-        else {
-          alert("Email not sent failed")
-        }
-      })
+      );
+
+      if (res.data.success) {
+        alert("Email Sent Successfully ✅");
+        setMsg("");
+        setEmailList([]);
+      } else {
+        alert(res.data.message || "Email not sent ❌");
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert("Server error ❌");
+    } finally {
+      setStatus(false);
+    }
   }
 
   return (
@@ -58,29 +81,31 @@ function App() {
         </p>
       </header>
 
-      {/* Main Card */}
+      {/* Main */}
       <main className="flex flex-1 items-center justify-center px-4">
         <div className="bg-white w-full max-w-2xl rounded-xl shadow-lg p-6">
 
-          {/* Email Content */}
+          {/* Message */}
           <div className="mb-5">
             <label className="block font-medium mb-2 text-gray-700">
               Email Content
             </label>
-            <textarea onChange={handlemsg} value={msg}
+            <textarea
+              value={msg}
+              onChange={handleMsg}
               placeholder="Type your email message here..."
               className="w-full h-40 p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
 
-          {/* File Upload */}
+          {/* File upload */}
           <div className="mb-4">
             <label className="block font-medium mb-2 text-gray-700">
               Upload Email List (CSV / Excel)
             </label>
 
             <div className="border-2 border-dashed border-blue-400 rounded-lg p-6 text-center hover:bg-blue-50 transition">
-              <input type="file" onChange={handlefile} className="mx-auto cursor-pointer" />
+              <input type="file" onChange={handleFile} />
               <p className="text-sm text-gray-500 mt-2">
                 Drag & drop or click to upload
               </p>
@@ -89,12 +114,17 @@ function App() {
 
           {/* Count */}
           <p className="text-sm text-gray-600 mb-4">
-            Total emails in file: <span className="font-semibold">{emailList.length}</span>
+            Total emails in file:{" "}
+            <span className="font-semibold">{emailList.length}</span>
           </p>
 
-          {/* Action Button */}
-          <button onClick={send} className="w-full bg-blue-950 hover:bg-blue-900 text-white py-3 rounded-lg font-medium transition">
-            {status ? "sending Emails..." : "Send Emails"}
+          {/* Button */}
+          <button
+            onClick={send}
+            disabled={status}
+            className="w-full bg-blue-950 hover:bg-blue-900 disabled:opacity-50 text-white py-3 rounded-lg font-medium transition"
+          >
+            {status ? "Sending Emails..." : "Send Emails"}
           </button>
 
         </div>

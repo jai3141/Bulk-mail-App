@@ -1,17 +1,16 @@
 {
-  "name": "backend",
+  "name": "bulkmail-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Bulk Mail Backend API",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
     "express": "^5.2.1",
     "mongoose": "^9.1.6",
     "nodemailer": "^7.0.13"
