@@ -2,18 +2,20 @@ import axios from "axios";
 import { useState } from "react";
 import * as XLSX from "xlsx";
 
+// 🔴 LIVE BACKEND URL
+const API_URL = "https://bulk-mail-app-u5p6.onrender.com";
+
 function App() {
-
   const [msg, setMsg] = useState("");
-  const [status, setStatus] = useState(false);
   const [emailList, setEmailList] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  /* Handle message typing */
+  /* Handle message */
   function handleMsg(e) {
     setMsg(e.target.value);
   }
 
-  /* Handle Excel / CSV upload */
+  /* Handle Excel / CSV file */
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -27,7 +29,7 @@ function App() {
       const worksheet = workbook.Sheets[sheetName];
 
       const rows = XLSX.utils.sheet_to_json(worksheet, { header: "A" });
-      const emails = rows.map(row => row.A).filter(Boolean);
+      const emails = rows.map(r => r.A).filter(Boolean);
 
       setEmailList(emails);
     };
@@ -35,7 +37,7 @@ function App() {
     reader.readAsArrayBuffer(file);
   }
 
-  /* Send mail */
+  /* Send emails */
   async function send() {
     if (!msg || emailList.length === 0) {
       alert("Message or email list empty ❌");
@@ -43,33 +45,35 @@ function App() {
     }
 
     try {
-      setStatus(true);
+      setLoading(true);
 
-      const res = await axios.post("http://localhost:4000/sendmail",
-        {
-          msg,
-          emailList
-        }
+      const res = await axios.post(
+        `${API_URL}/sendmail`,
+        { msg, emailList },
+        { timeout: 120000 } // 2 min (Render cold start)
       );
 
       if (res.data.success) {
-        alert("Email Sent Successfully ✅");
+        alert("Emails are being sent ✅");
         setMsg("");
         setEmailList([]);
       } else {
-        alert(res.data.message || "Email not sent ❌");
+        alert("Email sending failed ❌");
       }
 
-    } catch (error) {
-      console.error(error);
-      alert("Server error ❌");
+    } catch (err) {
+      if (err.code === "ECONNABORTED") {
+        alert("Server waking up 😴 Try again in few seconds");
+      } else {
+        alert("Server error ❌");
+      }
     } finally {
-      setStatus(false);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient from-slate-100 to-blue-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100 flex flex-col">
 
       {/* Header */}
       <header className="bg-blue-950 text-white py-4 shadow">
@@ -81,11 +85,11 @@ function App() {
         </p>
       </header>
 
-      {/* Main */}
+      {/* Main Card */}
       <main className="flex flex-1 items-center justify-center px-4">
         <div className="bg-white w-full max-w-2xl rounded-xl shadow-lg p-6">
 
-          {/* Message */}
+          {/* Email Content */}
           <div className="mb-5">
             <label className="block font-medium mb-2 text-gray-700">
               Email Content
@@ -98,14 +102,18 @@ function App() {
             />
           </div>
 
-          {/* File upload */}
+          {/* File Upload */}
           <div className="mb-4">
             <label className="block font-medium mb-2 text-gray-700">
               Upload Email List (CSV / Excel)
             </label>
 
             <div className="border-2 border-dashed border-blue-400 rounded-lg p-6 text-center hover:bg-blue-50 transition">
-              <input type="file" onChange={handleFile} />
+              <input
+                type="file"
+                onChange={handleFile}
+                className="mx-auto cursor-pointer"
+              />
               <p className="text-sm text-gray-500 mt-2">
                 Drag & drop or click to upload
               </p>
@@ -118,13 +126,13 @@ function App() {
             <span className="font-semibold">{emailList.length}</span>
           </p>
 
-          {/* Button */}
+          {/* Action Button */}
           <button
             onClick={send}
-            disabled={status}
+            disabled={loading}
             className="w-full bg-blue-950 hover:bg-blue-900 disabled:opacity-50 text-white py-3 rounded-lg font-medium transition"
           >
-            {status ? "Sending Emails..." : "Send Emails"}
+            {loading ? "Sending Emails..." : "Send Emails"}
           </button>
 
         </div>
